@@ -1,0 +1,68 @@
+# Local development only — Railway deployment does NOT use this file
+# (it uses railway.toml / Procfile / nixpacks.toml with managed
+# Postgres + Redis plugins instead). See docs/DEPLOYMENT.md.
+#
+# Usage:
+#   docker compose up -d postgres redis   # just the databases
+#   docker compose run --rm bot alembic upgrade head
+#   docker compose up bot worker
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kurdistan_finance
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  bot:
+    build: .
+    command: python -m bot.main
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/kurdistan_finance
+      DATABASE_URL_SYNC: postgresql+psycopg2://postgres:postgres@postgres:5432/kurdistan_finance
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  worker:
+    build: .
+    command: python -m worker.main
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/kurdistan_finance
+      DATABASE_URL_SYNC: postgresql+psycopg2://postgres:postgres@postgres:5432/kurdistan_finance
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

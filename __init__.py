@@ -1,9 +1,5 @@
-"""Worker — the scheduler/background-job service.
+"""Core shared modules: configuration, database, cache, logging, exceptions.
 
-Runs as a SEPARATE Railway service from the Telegram bot (see
-railway.toml / Procfile). Owns all scraping, reconciliation, alert
-checking, health monitoring, and AI summary generation. The bot process
-never imports from `worker` and never talks to providers/scrapers
-directly — see core/db.py's `PublishedRate` / Redis cache as the only
-handoff point between the two services.
+Every other package (bot, worker, providers, reconciliation, monitoring,
+history) depends on `core` — `core` must never import from them.
 """
